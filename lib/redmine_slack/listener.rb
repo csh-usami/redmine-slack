@@ -10,7 +10,13 @@ class SlackListener < Redmine::Hook::Listener
 		return unless channel and url
 		return if issue.is_private?
 
-		msg = "[#{escape issue.project}] #{escape issue.author} created <#{object_url issue}|#{escape issue}>#{mentions issue.description}"
+		if issue.assigned_to
+                        assigned_slackId = issue.assigned_to.custom_field_values.find{ |field| field.custom_field.name == 'Assign Notice ID' }
+                        msg = "<@#{assigned_slackId}> [#{escape issue.project}] Assigned by #{escape issue.author} <#{object_url issue}|#{escape issue}>#{mentions issue.description}"
+                else
+                        msg = "[#{escape issue.project}] #{escape issue.author} created <#{object_url issue}|#{escape issue}>#{mentions issue.description}"
+                end
+
 
 		attachment = {}
 		attachment[:text] = escape issue.description if issue.description
@@ -48,7 +54,13 @@ class SlackListener < Redmine::Hook::Listener
 		return if issue.is_private?
 		return if journal.private_notes?
 
-		msg = "[#{escape issue.project}] #{escape journal.user.to_s} updated <#{object_url issue}|#{escape issue}>#{mentions journal.notes}"
+		if (not issue.assigned_to) or (issue.assigned_to.login == journal.user.login)
+			msg = "[#{escape issue.project}] Updated by #{escape journal.user.to_s} <#{object_url issue}|#{escape issue}>#{mentions issue.notes}"
+		else
+			assigned_slackId = issue.assigned_to.custom_field_values.find{ |field| field.custom_field.name == 'Assign Notice ID' }
+			msg = "<@#{assigned_slackId}> [#{escape issue.project}] Updated by #{escape journal.user.to_s} <#{object_url issue}|#{escape issue}>#{mentions issue.notes}"
+		end
+
 
 		attachment = {}
 		attachment[:text] = escape journal.notes if journal.notes
@@ -68,7 +80,14 @@ class SlackListener < Redmine::Hook::Listener
 		return unless channel and url and issue.save
 		return if issue.is_private?
 
-		msg = "[#{escape issue.project}] #{escape journal.user.to_s} updated <#{object_url issue}|#{escape issue}>"
+		if (not issue.assigned_to) or (issue.assigned_to.login == journal.user.login)
+                        msg = "Updated by #{escape journal.user.to_s} <#{object_url issue}|#{escape issue}>"
+                else
+                        assigned_slackId = issue.assgined_to.custom_field_values.find{ |field| field.custom_field.name == 'Assign Notice ID' }
+                        msg = "<@#{assigned_slackId}> Updated by #{escape journal.user.to_s} <#{object_url issue}|#{escape issue}>"
+                end
+
+
 
 		repository = changeset.repository
 
@@ -113,7 +132,7 @@ class SlackListener < Redmine::Hook::Listener
 		user = page.content.author
 		project_url = "<#{object_url project}|#{escape project}>"
 		page_url = "<#{object_url page}|#{page.title}>"
-		comment = "[#{project_url}] #{page_url} updated by *#{user}*"
+		comment = "[#{project_url}] Wiki  #{page_url} updated by *#{user}*"
 		if page.content.version > 1
 			comment << " [<#{object_url page}/diff?version=#{page.content.version}|difference>]"
 		end
